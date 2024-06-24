@@ -5,26 +5,29 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
-	loggger "log"
+	"log"
 	"os"
+	"path/filepath"
 )
 
-func createOrOpenFile(filepath, filename string) (*os.File, error) {
-	if _, err := os.Stat(filepath + filename); errors.Is(err, os.ErrNotExist) {
-		return os.Create(filepath + filename)
+func createOrOpenFile(relativePath, filename string) (*os.File, error) {
+	fileRelativePath := filepath.Join(relativePath, filename)
+
+	if _, err := os.Stat(fileRelativePath); errors.Is(err, os.ErrNotExist) {
+		return os.Create(fileRelativePath)
 	}
 
-	return os.OpenFile(filepath+filename, os.O_APPEND|os.O_RDWR, 0644)
+	return openFile(relativePath, filename)
 }
 
-func openFile(filepath, filename string) (*os.File, error) {
-	return os.OpenFile(filepath+filename, os.O_APPEND|os.O_RDWR, 0644)
+func openFile(relativePath, filename string) (*os.File, error) {
+	return os.OpenFile(filepath.Join(relativePath, filename), os.O_APPEND|os.O_RDWR, 0644)
 }
 
 func closeFile(file *os.File) {
 	err := file.Close()
 	if err != nil {
-		loggger.Fatal(err)
+		log.Fatal(err)
 	}
 }
 
@@ -32,7 +35,7 @@ func calculateMd5(file *os.File) string {
 	md5Hash := md5.New()
 	_, err := io.Copy(md5Hash, file)
 	if err != nil {
-		loggger.Fatal(err)
+		log.Fatal(err)
 	}
 
 	return hex.EncodeToString(md5Hash.Sum(nil))
@@ -40,7 +43,7 @@ func calculateMd5(file *os.File) string {
 
 func xorMd5Hashes(hash1, hash2 []byte) []byte {
 	if len(hash1) != len(hash2) {
-		loggger.Fatal(errors.New("invalid hashes"))
+		log.Fatal(errors.New("invalid hashes"))
 	}
 
 	result := make([]byte, len(hash1))

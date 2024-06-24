@@ -22,4 +22,4 @@ jobs:
           go-version: '1.22.x'
 
       - name: Build Go main
-        run: go build ./main.go
+        run: go build main.go add.go commit.go config.go log.go util.go checkout.go

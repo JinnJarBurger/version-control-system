@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	loggger "log"
+	"log"
 	"os"
 )
 
@@ -23,7 +23,7 @@ func processAddArg(indexFile *os.File) {
 		} else {
 			_, err := fmt.Fprintln(indexFile, add)
 			if err != nil {
-				loggger.Fatal(err)
+				log.Fatal(err)
 			}
 
 			fmt.Printf("The file '%s' is tracked.\n", add)

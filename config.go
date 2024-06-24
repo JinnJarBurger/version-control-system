@@ -3,7 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
-	loggger "log"
+	"log"
 	"os"
 )
 
@@ -19,12 +19,12 @@ func processConfigArg(configFile *os.File) {
 	if config != "" {
 		err := os.Truncate(configFile.Name(), 0)
 		if err != nil {
-			loggger.Fatal(err)
+			log.Fatal(err)
 		}
 
 		_, err = fmt.Fprintln(configFile, config)
 		if err != nil {
-			loggger.Fatal(err)
+			log.Fatal(err)
 		}
 
 		fmt.Printf("The username is %s.\n", config)

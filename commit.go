@@ -8,17 +8,19 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	loggger "log"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 )
 
+var commitDir = filepath.Join(".", "vcs", "commits")
+
 func processCommitArg(configFile, indexFile, logFile *os.File) {
 	var filesToCommit []string
 	var finalHash []byte
-	var log strings.Builder
+	var logBuilder strings.Builder
 
 	md5Hash := md5.New()
 	md5Hash.Write([]byte(time.Now().String()))
@@ -53,21 +55,21 @@ func processCommitArg(configFile, indexFile, logFile *os.File) {
 
 		dirEmpty, err := commitDirEmpty()
 		if err != nil {
-			loggger.Fatal(err)
+			log.Fatal(err)
 		}
 
 		// TODO: initially optimized space here, not needed for now but will bring this feature back later
 		if dirEmpty || trackedFilesChanged {
-			fileInIndexFile, err := openFile("./", filename)
+			fileInIndexFile, err := openFile(".", filename)
 			if err != nil {
-				loggger.Fatal(err)
+				log.Fatal(err)
 			}
 
 			fileHash := md5.New()
 
 			_, err = io.Copy(fileHash, fileInIndexFile)
 			if err != nil {
-				loggger.Fatal(err)
+				log.Fatal(err)
 			}
 
 			finalHash = xorMd5Hashes(md5Hash.Sum(nil), fileHash.Sum(nil))
@@ -79,54 +81,55 @@ func processCommitArg(configFile, indexFile, logFile *os.File) {
 	}
 
 	if len(filesToCommit) > 0 {
-		hashDir := "./vcs/commits/" + hex.EncodeToString(finalHash) + "/"
+		hashDir := filepath.Join(commitDir, hex.EncodeToString(finalHash))
 
 		err := os.MkdirAll(hashDir, os.ModePerm)
 		if err != nil {
-			loggger.Fatal(err)
+			log.Fatal(err)
 		}
 
 		for _, filename := range filesToCommit {
-			file, err := openFile("./", filename)
+			file, err := openFile(".", filename)
 			if err != nil {
-				loggger.Fatal(err)
+				log.Fatal(err)
 			}
 
-			destFile, err := os.Create(hashDir + filename)
+			destFile, err := os.Create(filepath.Join(hashDir, filename))
 			if err != nil {
-				loggger.Fatal(err)
+				log.Fatal(err)
 			}
 
 			_, err = io.Copy(destFile, file)
 			if err != nil {
-				loggger.Fatal(err)
+				log.Fatal(err)
 			}
 
 			closeFile(destFile)
 			closeFile(file)
 		}
 
-		log.WriteString("commit ")
-		log.WriteString(hex.EncodeToString(finalHash))
-		log.WriteString("\n")
+		logBuilder.WriteString("commit ")
+		logBuilder.WriteString(hex.EncodeToString(finalHash))
+		logBuilder.WriteString("\n")
 
 		scanner := bufio.NewScanner(configFile)
 		scanner.Scan()
 
-		log.WriteString("Author: ")
-		log.WriteString(scanner.Text())
-		log.WriteString("\n")
+		logBuilder.WriteString("Author: ")
+		logBuilder.WriteString(scanner.Text())
+		logBuilder.WriteString("\n")
 
-		log.WriteString(commit)
+		logBuilder.WriteString(commit)
+		logBuilder.WriteString("\n")
 
-		tmpLogFile, err := os.Create("./vcs/tmpLog.txt")
+		tmpLogFile, err := os.Create(filepath.Join(".", "vcs", "tmpLog.txt"))
 		if err != nil {
-			loggger.Fatal(err)
+			log.Fatal(err)
 		}
 
-		_, err = fmt.Fprintln(tmpLogFile, log.String())
+		_, err = fmt.Fprintln(tmpLogFile, logBuilder.String())
 		if err != nil {
-			loggger.Fatal(err)
+			log.Fatal(err)
 		}
 
 		scanner = bufio.NewScanner(logFile)
@@ -134,32 +137,27 @@ func processCommitArg(configFile, indexFile, logFile *os.File) {
 		for scanner.Scan() {
 			_, err = fmt.Fprintln(tmpLogFile, scanner.Text())
 			if err != nil {
-				loggger.Fatal(err)
+				log.Fatal(err)
 			}
 
 		}
 
 		err = tmpLogFile.Sync()
 		if err != nil {
-			loggger.Fatal(err)
+			log.Fatal(err)
 		}
 
 		closeFile(tmpLogFile)
 
 		err = os.Rename(tmpLogFile.Name(), logFile.Name())
 		if err != nil {
-			loggger.Fatal(err)
+			log.Fatal(err)
 		}
 
 		fmt.Println("Changes are committed.")
 	} else {
 		fmt.Println("Nothing to commit.")
 	}
-
-	//err := os.Truncate(indexFile.Name(), 0)
-	//if err != nil {
-	//	loggger.Fatal(err)
-	//}
 }
 
 func anyFileChanged(indexFile *os.File, commitHash string, buffer *bytes.Buffer) bool {
@@ -170,7 +168,7 @@ func anyFileChanged(indexFile *os.File, commitHash string, buffer *bytes.Buffer)
 
 		_, err := fmt.Fprintln(buffer, filename)
 		if err != nil {
-			loggger.Fatal(err)
+			log.Fatal(err)
 		}
 
 		if fileChangedSinceLastCommit(filename, commitHash) {
@@ -182,11 +180,11 @@ func anyFileChanged(indexFile *os.File, commitHash string, buffer *bytes.Buffer)
 }
 
 func fileChangedSinceLastCommit(filename, commitHash string) bool {
-	commitHashDir := "./vcs/commits/" + commitHash + "/"
+	commitHashDir := filepath.Join(commitDir, commitHash)
 
-	file, err := openFile("./", filename)
+	file, err := openFile(".", filename)
 	if err != nil {
-		loggger.Fatal(err)
+		log.Fatal(err)
 	}
 	defer closeFile(file)
 
@@ -194,19 +192,19 @@ func fileChangedSinceLastCommit(filename, commitHash string) bool {
 
 	entries, err := os.ReadDir(commitHashDir)
 	if err != nil {
-		loggger.Fatal(err)
+		log.Fatal(err)
 	}
 
 	for _, entry := range entries {
 		if !entry.IsDir() && filename == entry.Name() {
 			fileInfo, err := entry.Info()
 			if err != nil {
-				loggger.Fatal(err)
+				log.Fatal(err)
 			}
 
 			commitFile, err := openFile(commitHashDir, filepath.Base(fileInfo.Name()))
 			if err != nil {
-				loggger.Fatal(err)
+				log.Fatal(err)
 			}
 
 			md5Hash2 := calculateMd5(commitFile)
@@ -221,11 +219,9 @@ func fileChangedSinceLastCommit(filename, commitHash string) bool {
 }
 
 func findLatestCommitDir() string {
-	commitDir := "./vcs/commits/"
-
 	entries, err := os.ReadDir(commitDir)
 	if err != nil {
-		loggger.Fatal(err)
+		log.Fatal(err)
 	}
 
 	var latestDirName string
@@ -235,7 +231,7 @@ func findLatestCommitDir() string {
 		if entry.IsDir() {
 			fileInfo, err := entry.Info()
 			if err != nil {
-				loggger.Fatal(err)
+				log.Fatal(err)
 			}
 
 			createdTime := fileInfo.ModTime().Unix()
@@ -251,11 +247,9 @@ func findLatestCommitDir() string {
 }
 
 func commitDirEmpty() (bool, error) {
-	commitDir := "./vcs/commits/"
-
 	dir, err := os.Open(commitDir)
 	if err != nil {
-		loggger.Fatal(err)
+		log.Fatal(err)
 	}
 
 	defer closeFile(dir)

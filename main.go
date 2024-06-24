@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	loggger "log"
+	"log"
 	"os"
+	"path/filepath"
 )
 
 const helpMsg = `These are SVCS commands:
@@ -13,31 +14,33 @@ log        Show commit logs.
 commit     Save changes.
 checkout   Restore a file.`
 
+var vcsDir = filepath.Join(".", "vcs")
+
 func main() {
-	loggger.SetFlags(loggger.LstdFlags | loggger.Lshortfile)
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
 	processHelpArg()
 
-	err := os.MkdirAll("./vcs/commits/", os.ModePerm)
+	err := os.MkdirAll(filepath.Join(vcsDir, "commits"), os.ModePerm)
 	if err != nil {
-		loggger.Fatal(err)
+		log.Fatal(err)
 	}
 
-	configFile, err := createOrOpenFile("./vcs/", "config.txt")
+	configFile, err := createOrOpenFile(vcsDir, "config.txt")
 	if err != nil {
-		loggger.Fatal(err)
+		log.Fatal(err)
 	}
 	defer closeFile(configFile)
 
-	indexFile, err := createOrOpenFile("./vcs/", "index.txt")
+	indexFile, err := createOrOpenFile(vcsDir, "index.txt")
 	if err != nil {
-		loggger.Fatal(err)
+		log.Fatal(err)
 	}
 	defer closeFile(indexFile)
 
-	logFile, err := createOrOpenFile("./vcs/", "log.txt")
+	logFile, err := createOrOpenFile(vcsDir, "log.txt")
 	if err != nil {
-		loggger.Fatal(err)
+		log.Fatal(err)
 	}
 	defer closeFile(logFile)
 
